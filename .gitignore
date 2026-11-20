@@ -67,3 +67,11 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# IDE
+.vs/
+.vscode/
+out/
+
+# Wavefront models are assets, not object files
+!assets/**/*.obj
