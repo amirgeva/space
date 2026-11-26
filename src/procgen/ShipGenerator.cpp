@@ -24,6 +24,8 @@ void recenter(ModelData& model)
     for (auto& sub : model.subMeshes)
         for (Vertex& v : sub.mesh.vertices)
             v.position -= center;
+    for (EffectDesc& e : model.effects)
+        e.transform[3] -= glm::vec4(center, 0.0f);
 }
 
 } // namespace

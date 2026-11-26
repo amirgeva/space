@@ -46,6 +46,8 @@ space_warnings(space_geometry)
 # OpenGL rendering and windowing
 add_library(space_render STATIC
     src/core/Window.cpp
+    src/effects/EffectFactory.cpp
+    src/effects/ForceField.cpp
     src/render/Mesh.cpp
     src/render/Model.cpp
     src/render/Shader.cpp

@@ -92,6 +92,10 @@ public:
     void disc(const glm::mat4& xf, float radius, float z, int segments, bool facePositiveZ = true);
     void annulus(const glm::mat4& xf, float innerRadius, float outerRadius, float z, int segments,
                  bool facePositiveZ = true);
+    // Flat face at local z between two convex outlines that both contain the origin, `inner` inside
+    // `outer`: a polygon with a hole, such as a wall with a doorway. Mapped planar in local x / y.
+    void polygonRing(const glm::mat4& xf, const Profile& outer, const Profile& inner, float z,
+                     bool facePositiveZ = true);
     // Hemisphere whose equator lies at local z, bulging towards +Z (or -Z).
     void dome(const glm::mat4& xf, float radius, float z, int segments, int rings, bool towardsPositiveZ = true);
     // Square-section bar between two points given in xf's local space.

@@ -34,8 +34,21 @@ struct MeshData {
     std::vector<std::uint32_t> indices;
 };
 
-// CPU-side model: geometry grouped by material. Produced by the OBJ loader and the
-// procedural generators; uploaded to the GPU by render::Model or saved by writeObj.
+enum class EffectType {
+    ForceField, // flickering energy screen across an opening
+};
+
+// Where a model wants a visual effect attached. The effect's quad lies in the transform's local XY
+// plane, centered on its origin, facing local +Z.
+struct EffectDesc {
+    EffectType type = EffectType::ForceField;
+    glm::mat4 transform{1.0f}; // model space, rigid
+    glm::vec2 size{1.0f};
+};
+
+// CPU-side model: geometry grouped by material, plus the effects attached to it. Produced by the
+// OBJ loader and the procedural generators; uploaded to the GPU by render::Model or saved by writeObj
+// (which ignores the effects).
 struct ModelData {
     struct SubMesh {
         MeshData mesh;
@@ -44,6 +57,7 @@ struct ModelData {
 
     std::vector<MaterialDesc> materials;
     std::vector<SubMesh> subMeshes;
+    std::vector<EffectDesc> effects;
 
     std::size_t triangleCount() const
     {

@@ -394,6 +394,67 @@ void MeshBuilder::annulus(const glm::mat4& xf, float innerRadius, float outerRad
     }
 }
 
+namespace {
+
+// Where the ray from the origin at angle a leaves a convex outline that contains the origin.
+glm::vec2 rayExit(const Profile& prof, float a)
+{
+    const glm::vec2 d(std::cos(a), std::sin(a));
+    auto cross = [](const glm::vec2& p, const glm::vec2& q) { return p.x * q.y - p.y * q.x; };
+    float best = 1e30f;
+    for (std::size_t i = 0; i < prof.size(); ++i) {
+        const glm::vec2 p = prof[i], e = prof[(i + 1) % prof.size()] - p;
+        const float den = cross(d, e);
+        if (std::abs(den) < 1e-12f)
+            continue;
+        const float t = cross(p, e) / den, s = cross(p, d) / den;
+        if (t > 0.0f && s >= -1e-4f && s <= 1.0f + 1e-4f)
+            best = std::min(best, t);
+    }
+    return d * (best < 1e30f ? best : 0.0f);
+}
+
+} // namespace
+
+void MeshBuilder::polygonRing(const glm::mat4& xf, const Profile& outer, const Profile& inner, float z,
+                              bool facePositiveZ)
+{
+    if (outer.size() < 3 || inner.size() < 3)
+        return;
+
+    // Sample both outlines on rays through every vertex of either, so each quad's outer edge lies on
+    // `outer` and its inner edge on `inner`.
+    std::vector<float> angles;
+    for (const Profile* prof : {&outer, &inner})
+        for (const glm::vec2& p : *prof)
+            angles.push_back(std::atan2(p.y, p.x));
+    std::sort(angles.begin(), angles.end());
+    angles.erase(std::unique(angles.begin(), angles.end(), [](float a, float b) { return b - a < 1e-5f; }),
+                 angles.end());
+
+    glm::vec2 lo(1e30f), hi(-1e30f);
+    for (const glm::vec2& p : outer) {
+        lo = glm::min(lo, p);
+        hi = glm::max(hi, p);
+    }
+    const glm::vec2 size = hi - lo;
+
+    Emitter e(target(), xf, !facePositiveZ);
+    const glm::vec3 normal(0.0f, 0.0f, 1.0f); // Emitter flips it for -Z
+    auto vertex = [&](const glm::vec2& q) {
+        // Mirror u on the back face so textures don't appear flipped.
+        const float x = facePositiveZ ? q.x - lo.x : hi.x - q.x;
+        return e.vertex({q, z}, normal, {uvU(x, size.x), uvV(q.y - lo.y, size.y)});
+    };
+    const std::size_t n = angles.size();
+    for (std::size_t i = 0; i < n; ++i) {
+        const float a0 = angles[i], a1 = angles[(i + 1) % n];
+        const auto in0 = vertex(rayExit(inner, a0)), out0 = vertex(rayExit(outer, a0));
+        const auto out1 = vertex(rayExit(outer, a1)), in1 = vertex(rayExit(inner, a1));
+        e.quad(in0, out0, out1, in1);
+    }
+}
+
 void MeshBuilder::dome(const glm::mat4& xf, float radius, float z, int segments, int rings, bool towardsPositiveZ)
 {
     Emitter e(target(), xf, !towardsPositiveZ);

@@ -1,5 +1,7 @@
+#include "core/FlyCamera.h"
 #include "core/OrbitCamera.h"
 #include "core/Window.h"
+#include "effects/EffectFactory.h"
 #include "geometry/ObjLoader.h"
 #include "procgen/ShipGenerator.h"
 #include "render/Model.h"
@@ -21,6 +23,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -44,7 +47,9 @@ void printUsage()
                 "             [--screenshot out.png] [--yaw radians] [--pitch radians]\n"
                 "             [--zoom factor] [--focus -1..1]\n\n"
                 "Controls: left-drag orbit, wheel zoom, N new random ship, [ / ] previous / next seed,\n"
-                "          T next ship type, Space toggle auto-rotate, Esc quit\n");
+                "          T next ship type, Space toggle auto-rotate, Esc quit\n"
+                "Flying:   Up / Down pitch, Left / Right roll, Q / A forward / backward,\n"
+                "          left-drag look around, wheel move, R or Space back to the orbit view\n");
 }
 
 Options parseArgs(int argc, char** argv)
@@ -105,6 +110,24 @@ void saveScreenshot(const fs::path& path, int width, int height)
     std::printf("Saved %s\n", path.string().c_str());
 }
 
+// Near and far planes that keep the whole model in view from eye, as tight as possible for depth precision.
+std::pair<float, float> clipPlanes(const glm::vec3& eye, const glm::vec3& boundsMin, const glm::vec3& boundsMax)
+{
+    const float radius = glm::length(boundsMax - boundsMin) * 0.5f;
+    const float farPlane = glm::length(eye - (boundsMin + boundsMax) * 0.5f) + radius * 1.5f;
+    // Nothing is closer than the bounding box. The 0.3 leaves room for geometry in the corners of the view,
+    // whose depth is less than its distance.
+    const float toBox = glm::length(eye - glm::clamp(eye, boundsMin, boundsMax));
+    return {std::max(farPlane * 1e-4f, toBox * 0.3f), farPlane};
+}
+
+constexpr float kPitchRate = 1.0f; // radians per second
+constexpr float kRollRate = 1.5f;  // radians per second
+// Flying speed in model diagonals per second: slow at first, for moving around inside a hangar, then
+// doubling every second the key is held, up to a cruise speed for crossing the whole model.
+constexpr float kFlySpeedMin = 0.02f;
+constexpr float kFlySpeedMax = 0.4f;
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -116,9 +139,12 @@ int main(int argc, char** argv)
         const auto assets = assetDir(argv[0]);
         space::Shader shader(assets / "shaders/basic.vert", assets / "shaders/basic.frag");
         space::TextureCache textures;
+        space::EffectFactory effects(assets);
         space::OrbitCamera camera;
         camera.yaw = opt.yaw;
         camera.pitch = opt.pitch;
+        space::FlyCamera fly;
+        bool flying = false; // the fly camera is in use instead of the orbit camera
 
         std::unique_ptr<space::Model> model;
         auto load = [&]() {
@@ -137,6 +163,8 @@ int main(int argc, char** argv)
             model.reset();
             textures.prune();
             model = std::make_unique<space::Model>(data, textures);
+            for (const space::EffectDesc& effect : data.effects)
+                model->attach(effects.create(effect));
             std::printf("%s: %zu triangles, %zu materials, built in %.1f ms\n", title.c_str(), data.triangleCount(),
                         data.materials.size(), ms);
             window.setTitle(title);
@@ -145,6 +173,7 @@ int main(int argc, char** argv)
             camera.target = (model->boundsMin() + model->boundsMax()) * 0.5f;
             camera.target.z += opt.focus * size.z * 0.5f;
             camera.distance = glm::length(size) * 0.62f / opt.zoom;
+            flying = false;
         };
         load();
 
@@ -155,19 +184,24 @@ int main(int argc, char** argv)
 
         const glm::vec3 lightDir = glm::normalize(glm::vec3(-0.6f, -0.8f, -0.45f));
         bool autoRotate = !opt.screenshot;
+        float thrustTime = 0.0f; // how long Q / A has been held
         glm::vec2 lastCursor = window.cursorPos();
         double lastTime = glfwGetTime();
 
         while (!window.shouldClose()) {
             window.pollEvents();
             const double now = glfwGetTime();
-            const float dt = float(now - lastTime);
+            const float dt = std::min(float(now - lastTime), 0.1f); // no jump after a slow frame
             lastTime = now;
 
             if (window.isKeyDown(GLFW_KEY_ESCAPE))
                 window.requestClose();
-            if (window.wasKeyPressed(GLFW_KEY_SPACE))
+            if (window.wasKeyPressed(GLFW_KEY_SPACE)) {
                 autoRotate = !autoRotate;
+                flying = false;
+            }
+            if (window.wasKeyPressed(GLFW_KEY_R))
+                flying = false;
             if (!opt.modelPath) {
                 bool regenerate = false;
                 if (window.wasKeyPressed(GLFW_KEY_N)) {
@@ -194,29 +228,62 @@ int main(int argc, char** argv)
                     load();
             }
 
+            // Flight controls take over from the orbit camera, starting from the current view.
+            const auto axis = [&](int positiveKey, int negativeKey) {
+                return float(window.isKeyDown(positiveKey)) - float(window.isKeyDown(negativeKey));
+            };
+            const float pitchInput = axis(GLFW_KEY_UP, GLFW_KEY_DOWN);
+            const float rollInput = axis(GLFW_KEY_RIGHT, GLFW_KEY_LEFT);
+            const float thrustInput = axis(GLFW_KEY_Q, GLFW_KEY_A);
+            if (!flying && (pitchInput != 0.0f || rollInput != 0.0f || thrustInput != 0.0f)) {
+                fly.lookAt(camera.position(), camera.target, glm::vec3(0.0f, 1.0f, 0.0f));
+                flying = true;
+                autoRotate = false;
+            }
+            const float modelSize = glm::length(model->boundsMax() - model->boundsMin());
+            thrustTime = thrustInput != 0.0f ? thrustTime + dt : 0.0f;
+            if (flying) {
+                const float speed = std::min(kFlySpeedMin * std::exp2(thrustTime), kFlySpeedMax);
+                fly.pitch(pitchInput * kPitchRate * dt);
+                fly.roll(rollInput * kRollRate * dt);
+                fly.move(thrustInput * speed * modelSize * dt);
+            }
+
             const glm::vec2 cursor = window.cursorPos();
             if (window.isMouseButtonDown(GLFW_MOUSE_BUTTON_LEFT)) {
                 const glm::vec2 d = cursor - lastCursor;
-                camera.rotate(-d.x * 0.008f, d.y * 0.008f);
+                if (flying) {
+                    fly.yaw(d.x * 0.003f);
+                    fly.pitch(d.y * 0.003f);
+                } else {
+                    camera.rotate(-d.x * 0.008f, d.y * 0.008f);
+                }
                 autoRotate = false;
             }
             lastCursor = cursor;
-            camera.zoom(window.scrollDelta());
+            if (flying)
+                fly.move(window.scrollDelta() * modelSize * 0.03f);
+            else
+                camera.zoom(window.scrollDelta());
             if (autoRotate)
                 camera.rotate(dt * 0.15f, 0.0f);
 
-            const glm::mat4 projection = glm::perspective(glm::radians(50.0f), window.aspect(),
-                                                          camera.distance * 0.01f, camera.distance * 10.0f);
+            const glm::vec3 eye = flying ? fly.position : camera.position();
+            const auto [nearPlane, farPlane] = clipPlanes(eye, model->boundsMin(), model->boundsMax());
+            const glm::mat4 projection = glm::perspective(glm::radians(50.0f), window.aspect(), nearPlane, farPlane);
             const glm::mat4 modelMatrix(1.0f);
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             shader.use();
             shader.set("uModel", modelMatrix);
-            shader.set("uViewProj", projection * camera.view());
+            const glm::mat4 viewProj = projection * (flying ? fly.view() : camera.view());
+            shader.set("uViewProj", viewProj);
             shader.set("uNormalMatrix", glm::mat3(glm::transpose(glm::inverse(modelMatrix))));
             shader.set("uLightDir", lightDir);
-            shader.set("uCameraPos", camera.position());
+            shader.set("uCameraPos", eye);
             model->draw(shader);
+            model->updateEffects(dt);
+            model->drawEffects({viewProj, modelMatrix, eye});
 
             if (opt.screenshot) {
                 saveScreenshot(*opt.screenshot, window.width(), window.height());

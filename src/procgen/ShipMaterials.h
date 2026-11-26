@@ -4,6 +4,7 @@
 #include "procgen/Surface.h"
 
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace space {
@@ -29,7 +30,14 @@ struct ShipMaterials {
     Surface greenhouse;   // lit agricultural glazing (emissive map)
     std::vector<Surface> cargo; // tinted container / tank variants
 
+    glm::vec3 hullTint{1.0f};   // livery colors, for materials a ship type adds on its own
+    glm::vec3 accentTint{1.0f};
+
     static ShipMaterials create(MeshBuilder& b, const std::filesystem::path& textureDir, Rng& rng);
 };
+
+// Phong material with a diffuse texture, tinted by `tint`.
+MaterialDesc texturedMaterial(const std::string& name, const std::filesystem::path& texture, const glm::vec3& tint,
+                              float specular, float shininess);
 
 } // namespace space

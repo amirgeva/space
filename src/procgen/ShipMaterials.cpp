@@ -4,10 +4,8 @@
 
 namespace space {
 
-namespace {
-
-MaterialDesc textured(const std::string& name, const std::filesystem::path& texture, const glm::vec3& tint,
-                      float specular, float shininess)
+MaterialDesc texturedMaterial(const std::string& name, const std::filesystem::path& texture, const glm::vec3& tint,
+                              float specular, float shininess)
 {
     MaterialDesc m;
     m.name = name;
@@ -17,6 +15,8 @@ MaterialDesc textured(const std::string& name, const std::filesystem::path& text
     m.diffuseMap = texture;
     return m;
 }
+
+namespace {
 
 MaterialDesc glowing(const std::string& name, const glm::vec3& emissive)
 {
@@ -52,10 +52,13 @@ ShipMaterials ShipMaterials::create(MeshBuilder& b, const std::filesystem::path&
         {0.20f, 0.52f, 0.36f}, {0.45f, 0.47f, 0.50f}, {0.12f, 0.55f, 0.60f}, {0.85f, 0.68f, 0.15f},
     };
 
+    constexpr auto textured = texturedMaterial;
     const glm::vec3 hullTint = rng.pick(hullTints);
     const glm::vec3 accentTint = rng.pick(accents);
 
     ShipMaterials m;
+    m.hullTint = hullTint;
+    m.accentTint = accentTint;
     m.hull = {b.addMaterial(textured("hull", dir / "hull.png", hullTint, 0.35f, 24.0f)), {10.0f, 10.0f}};
     m.hullDark = {b.addMaterial(textured("hull_dark", dir / "hull.png", hullTint * 0.55f, 0.3f, 24.0f)), {8.0f, 8.0f}};
     m.accent = {b.addMaterial(textured("accent", dir / "hull.png", accentTint, 0.4f, 32.0f)), {10.0f, 10.0f}};

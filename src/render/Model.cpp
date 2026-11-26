@@ -4,6 +4,7 @@
 #include "render/TextureCache.h"
 
 #include <limits>
+#include <utility>
 
 namespace space {
 
@@ -48,6 +49,24 @@ void Model::draw(const Shader& shader) const
         mat.emissiveMap->bind(1);
         sub.mesh.draw();
     }
+}
+
+void Model::attach(std::unique_ptr<Effect> effect)
+{
+    if (effect)
+        m_effects.push_back(std::move(effect));
+}
+
+void Model::updateEffects(float dt)
+{
+    for (const auto& effect : m_effects)
+        effect->update(dt);
+}
+
+void Model::drawEffects(const EffectContext& ctx) const
+{
+    for (const auto& effect : m_effects)
+        effect->draw(ctx);
 }
 
 } // namespace space

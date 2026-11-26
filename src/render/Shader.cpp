@@ -77,6 +77,11 @@ void Shader::set(const char* name, int value) const { glUniform1i(location(name)
 
 void Shader::set(const char* name, float value) const { glUniform1f(location(name), value); }
 
+void Shader::set(const char* name, const glm::vec2& value) const
+{
+    glUniform2fv(location(name), 1, glm::value_ptr(value));
+}
+
 void Shader::set(const char* name, const glm::vec3& value) const
 {
     glUniform3fv(location(name), 1, glm::value_ptr(value));
