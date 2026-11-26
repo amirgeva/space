@@ -12,6 +12,7 @@ namespace space {
 enum class ShipType {
     LogisticsFreighter, // long cargo hauler / mobile port: engine block, hull, bridge, cargo spine
     WheelStation,       // spinning wheel station: docking hub, spokes, habitat ring(s)
+    Fighter,            // single-seat fighter: faceted fuselage, canopy, wings, fins, weapons
 };
 
 struct ShipParams {
@@ -28,6 +29,6 @@ std::string_view toString(ShipType type);
 std::optional<ShipType> shipTypeFromString(std::string_view name);
 
 // All ship types, in declaration order.
-inline constexpr ShipType kShipTypes[] = {ShipType::LogisticsFreighter, ShipType::WheelStation};
+inline constexpr ShipType kShipTypes[] = {ShipType::LogisticsFreighter, ShipType::WheelStation, ShipType::Fighter};
 
 } // namespace space

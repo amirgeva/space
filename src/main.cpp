@@ -40,7 +40,7 @@ struct Options {
 
 void printUsage()
 {
-    std::printf("Usage: space [--seed N] [--type freighter|station] [--model file.obj]\n"
+    std::printf("Usage: space [--seed N] [--type freighter|station|fighter] [--model file.obj]\n"
                 "             [--screenshot out.png] [--yaw radians] [--pitch radians]\n"
                 "             [--zoom factor] [--focus -1..1]\n\n"
                 "Controls: left-drag orbit, wheel zoom, N new random ship, [ / ] previous / next seed,\n"

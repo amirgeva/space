@@ -35,6 +35,7 @@ add_library(space_geometry STATIC
     src/procgen/ShipGenerator.cpp
     src/procgen/ShipMaterials.cpp
     src/procgen/ShipParts.cpp
+    src/procgen/ships/Fighter.cpp
     src/procgen/ships/LogisticsFreighter.cpp
     src/procgen/ships/WheelStation.cpp
 )

@@ -1,6 +1,6 @@
 // shipgen: generates a spacecraft and writes it as Wavefront .obj/.mtl.
 //
-//   shipgen [--type freighter|station] [--seed N] [--count K] [--out ship.obj] [--textures dir]
+//   shipgen [--type freighter|station|fighter] [--seed N] [--count K] [--out ship.obj] [--textures dir]
 //
 // With --count K > 1, seeds N..N+K-1 are written as <out-stem>_<seed>.obj.
 
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
                     throw std::runtime_error("Unknown ship type");
                 params.type = *type;
             } else {
-                std::printf("Usage: shipgen [--type freighter|station] [--seed N] [--count K] [--out ship.obj] "
+                std::printf("Usage: shipgen [--type freighter|station|fighter] [--seed N] [--count K] [--out ship.obj] "
                             "[--textures dir]\n");
                 return arg == "--help" || arg == "-h" ? 0 : 1;
             }

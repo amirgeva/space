@@ -4,11 +4,8 @@ A space simulation 3D game in C++20 and OpenGL 4.3 core.
 
 ## Dependencies
 
-You need vcpkg in classic mode with `VCPKG_ROOT` set. Install the dependencies with:
-
-```
-vcpkg install glfw3 glew glm stb --triplet x64-windows
-```
+You need vcpkg with `VCPKG_ROOT` set. The dependencies (glfw3, glew, glm, stb) are listed in
+`vcpkg.json`, and vcpkg installs them automatically the first time you configure.
 
 ## Build
 
@@ -26,7 +23,7 @@ The build copies `assets/` and the vcpkg DLLs next to the executable.
 `space` generates a ship and shows it. The same seed always generates the same ship.
 
 ```
-space [--seed N] [--type freighter|station] [--model file.obj]
+space [--seed N] [--type freighter|station|fighter] [--model file.obj]
       [--screenshot out.png] [--yaw radians] [--pitch radians] [--zoom factor] [--focus -1..1]
 ```
 
@@ -42,7 +39,7 @@ space [--seed N] [--type freighter|station] [--model file.obj]
 folder next to the output, so the result opens directly in Blender and similar tools.
 
 ```
-shipgen [--type freighter|station] [--seed N] [--count K] [--out ship.obj] [--textures dir]
+shipgen [--type freighter|station|fighter] [--seed N] [--count K] [--out ship.obj] [--textures dir]
 ```
 
 **Logistics freighter / port** is the first ship type. It is built along +Z from stern to bow:
@@ -76,6 +73,19 @@ Each seed also picks a livery: the hull tint, an accent color and the cargo colo
   glazing facing the hub.
 - **Spokes:** transit tubes between hub and ring. They come as a single tube, twin tubes, or a tube
   inside a truss, with bulkhead rings, elevator cars and airlock blocks at the ring.
+
+**Fighter** (`--type fighter`) is a single-seat craft, built along +Z from tail to nose:
+
+- **Fuselage:** a faceted body with an engine section, a mid section and a tapered nose with a
+  sensor probe, sometimes in the accent color. Small greebles sit on the top and belly, with
+  panel-line relief and optional trim on the sides.
+- **Canopy:** dark glass with a sloped windscreen and a frame, and a dorsal fairing behind it.
+- **Engines:** one or two nozzles in the tail with a belly intake, or two nacelles at the wing roots.
+- **Wings:** swept, delta or forward-swept, with dihedral or anhedral and optional accent tips.
+  Some have tail planes as well.
+- **Fins:** a single fin or twin canted fins, sometimes with ventral fins below.
+- **Weapons:** cannons on the leading edges, missiles on pylons under the wings, and optional
+  wingtip missile rails.
 
 ## Layout
 

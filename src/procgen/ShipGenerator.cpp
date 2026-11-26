@@ -1,5 +1,6 @@
 #include "procgen/ShipGenerator.h"
 
+#include "procgen/ships/Fighter.h"
 #include "procgen/ships/LogisticsFreighter.h"
 #include "procgen/ships/WheelStation.h"
 
@@ -37,6 +38,9 @@ ModelData generateShip(const ShipParams& params)
     case ShipType::WheelStation:
         model = generateWheelStation(params.seed, params.textureDir);
         break;
+    case ShipType::Fighter:
+        model = generateFighter(params.seed, params.textureDir);
+        break;
     }
     recenter(model);
     return model;
@@ -49,6 +53,8 @@ std::string_view toString(ShipType type)
         return "freighter";
     case ShipType::WheelStation:
         return "station";
+    case ShipType::Fighter:
+        return "fighter";
     }
     return "unknown";
 }
@@ -59,6 +65,8 @@ std::optional<ShipType> shipTypeFromString(std::string_view name)
         return ShipType::LogisticsFreighter;
     if (name == "station" || name == "wheel")
         return ShipType::WheelStation;
+    if (name == "fighter")
+        return ShipType::Fighter;
     return std::nullopt;
 }
 
